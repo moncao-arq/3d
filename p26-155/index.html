@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casa Terramare · Estrutura 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* layout: viewer em tela cheia + barra superior + painel de camadas flutuante (vira gaveta no celular) */
+:root{
+  --bg:#ECEEF0; --panel:#FFFFFF; --fg:#1D2329; --muted:#5E6872; --line:#D3D8DD; --accent:#8C8C8C; --ink:#2B3A4A;
+  --c-sap:#8D6E63; --c-cor:#6F7477; --c-pil:#D8382F; --c-vig0:#F08A1C; --c-vig:#1E7FD8; --c-laj:#B7BEC5; --c-mad:#A1887F; --c-cx:#3DB7E9;
+  --f-disp:"Archivo",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15191D;--panel:#1F252B;--fg:#E7EBEE;--muted:#9AA4AD;--line:#323A42;--ink:#C9D3DC;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#15191D;--panel:#1F252B;--fg:#E7EBEE;--muted:#9AA4AD;--line:#323A42;--ink:#C9D3DC;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-disp);overflow:hidden}
+.app{position:relative;height:100%;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--panel)}
+.tag{background:var(--accent);color:#fff;font-weight:800;font-size:12px;letter-spacing:.08em;padding:4px 8px}
+h1{font-size:17px;margin:0;font-weight:800;text-wrap:balance}
+.sub{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.views{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+button{font:600 12.5px var(--f-disp);color:var(--fg);background:transparent;border:1px solid var(--line);padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--fg)} button:focus-visible{outline:2px solid var(--c-vig);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+#stage{flex:1;min-height:0;position:relative;touch-action:none}
+canvas{display:block}
+.panel{position:absolute;top:12px;left:max(12px,env(safe-area-inset-left,0px));width:250px;max-width:calc(100% - 24px);background:var(--panel);border:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:10px;max-height:calc(100% - 24px);overflow:auto}
+.panel h2{margin:0;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.layers{display:flex;flex-direction:column;gap:4px}
+.layer{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:3px 0;user-select:none}
+.layer input{accent-color:var(--fg)}
+.sw{width:14px;height:14px;border:1px solid rgba(0,0,0,.25);flex:none}
+.levels{display:flex;flex-wrap:wrap;gap:4px}
+.levels button{font-family:var(--f-mono);font-size:11.5px;padding:5px 7px}
+.stats{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-family:var(--f-mono);font-size:11.5px;font-variant-numeric:tabular-nums}
+.stats span:nth-child(odd){color:var(--muted)}
+.info{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:320px;max-width:calc(100% - 24px);background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);padding:10px 12px}
+.info b{font-size:15px;display:block}
+.info p{margin:4px 0 0;font-family:var(--f-mono);font-size:12px;line-height:1.45;color:var(--fg)}
+.hint{font-size:11.5px;color:var(--muted)}
+.toggle{display:none}
+@media (max-width:640px){
+  .panel{top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px));width:auto;right:max(12px,env(safe-area-inset-right,0px));max-height:46%}
+  .panel.closed .body{display:none}
+  .toggle{display:block}
+  .info{bottom:auto;top:12px}
+  .views{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+ <header>
+  <span class="tag">EST</span>
+  <div><h1>Casa Terramare · estrutura 3D</h1><div class="sub">P26 155 · Vila de Tatajuba, Camocim-CE · Monção Arquitetura e Engenharia</div></div>
+  <div class="views" role="group" aria-label="Vistas">
+   <button id="v-iso" aria-pressed="true">Isométrica</button><button id="v-front">Rua</button><button id="v-back">Lagoa</button><button id="v-top">Planta</button>
+  </div>
+ </header>
+ <div id="stage">
+  <aside class="panel" id="panel">
+   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h2>Camadas</h2><button class="toggle" id="tg" aria-expanded="true">Ocultar</button></div>
+   <div class="body" style="display:flex;flex-direction:column;gap:10px">
+    <div class="layers" id="layers"></div>
+    <h2>Nível</h2>
+    <div class="levels" id="levels"></div>
+    <h2>Resumo</h2>
+    <div class="stats" id="stats"></div>
+    <div class="hint">Arraste para girar, use dois dedos ou a roda para aproximar. Toque num elemento para ver seção e armação.</div>
+   </div>
+  </aside>
+  <div class="info" id="info"><b>Toque num elemento</b><p>Pilares, vigas, lajes, sapatas, cortina e a varanda em madeira, conforme as pranchas EST 01 a 14.</p></div>
+ </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = {"boxes":[["sap","fund","S2 – P1","Sapata 75×75×25 cm · malha ø10 c/15 · σ 0,25 MPa",-10.0,-4.225,-5.9,0.75,0.25,0.75],["pil","pil","P1","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 99 kN",-10.0,0.98,-5.9,0.14,10.16,0.3],["sap","fund","S1 – P2","Sapata 60×60×25 cm · malha ø10 c/15 · σ 0,25 MPa",-8.0,-4.225,-5.9,0.6,0.25,0.6],["pil","pil","P2","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 28 kN",-8.0,-2.05,-5.9,0.14,4.1,0.3],["sap","fund","S2 – P3","Sapata 75×75×25 cm · malha ø10 c/15 · σ 0,25 MPa",-5.0,-4.225,-5.9,0.75,0.25,0.75],["pil","pil","P3","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 126 kN",-5.0,0.98,-5.9,0.14,10.16,0.3],["sap","fund","S3 – P4","Sapata 90×90×25 cm · malha ø10 c/15 · σ 0,25 MPa",-1.9,-4.225,-5.9,0.9,0.25,0.9],["pil","pil","P4","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 156 kN",-1.9,0.98,-5.9,0.14,10.16,0.3],["sap","fund","S4 – P5","Sapata 105×105×25 cm · malha ø10 c/15 · σ 0,25 MPa",1.7,-4.225,-5.9,1.05,0.25,1.05],["pil","pil","P5","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 212 kN",1.7,0.98,-5.9,0.14,10.16,0.3],["sap","fund","S3 – P6","Sapata 90×90×25 cm · malha ø10 c/15 · σ 0,25 MPa",5.35,-4.225,-5.9,0.9,0.25,0.9],["pil","pil","P6","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 174 kN",5.35,0.98,-5.9,0.14,10.16,0.3],["sap","fund","S1 – P7","Sapata 60×60×25 cm · malha ø10 c/15 · σ 0,25 MPa",9.9,-4.225,-5.9,0.6,0.25,0.6],["pil","pil","P7","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 63 kN",9.9,-0.52,-5.9,0.14,7.16,0.3],["sap","fund","S1 – P8","Sapata 60×60×25 cm · malha ø10 c/15 · σ 0,25 MPa",-8.0,-4.225,-3.92,0.6,0.25,0.6],["pil","pil","P8","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 25 kN",-8.0,-2.05,-3.92,0.14,4.1,0.3],["sap","fund","S3 – P9","Sapata 90×90×25 cm · malha ø10 c/15 · σ 0,25 MPa",-5.0,-4.225,-3.92,0.9,0.25,0.9],["pil","pil","P9","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 135 kN",-5.0,0.98,-3.92,0.14,10.16,0.3],["sap","fund","S1 – P10","Sapata 60×60×25 cm · malha ø10 c/15 · σ 0,25 MPa",5.35,-4.225,-3.92,0.6,0.25,0.6],["pil","pil","P10","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 47 kN",5.35,0.98,-3.92,0.14,10.16,0.3],["sap","fund","S1 – P11","Sapata 60×60×25 cm · malha ø10 c/15 · σ 0,25 MPa",9.9,-4.225,-3.92,0.6,0.25,0.6],["pil","pil","P11","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 24 kN",9.9,-0.52,-3.92,0.14,7.16,0.3],["pil","pil","P12","Pilar 25×30 C30 · 4 ø10 + est. ø5,0 c/12 · embutido na cortina, arranque na sapata corrida",-8.0,-1.6,-3.11,0.25,3.2,0.3],["pil","pil","P13","Pilar 25×30 C30 · 4 ø10 + est. ø5,0 c/12 · embutido na cortina, arranque na sapata corrida",-5.0,-1.6,-3.11,0.25,3.2,0.3],["pil","pil","P14","Pilar 25×30 C30 · 4 ø10 + est. ø5,0 c/12 · embutido na cortina, arranque na sapata corrida",5.35,-1.6,-3.11,0.25,3.2,0.3],["pil","pil","P15","Pilar 25×30 C30 · 4 ø10 + est. ø5,0 c/12 · embutido na cortina, arranque na sapata corrida",9.9,-1.6,-3.11,0.25,3.2,0.3],["pil","pil","P16","Pilar 25×30 C30 · 4 ø10 + est. ø5,0 c/12 · embutido na cortina, arranque na sapata corrida",-5.0,-1.6,-1.31,0.25,3.2,0.3],["pil","pil","P17","Pilar 25×30 C30 · 4 ø10 + est. ø5,0 c/12 · embutido na cortina, arranque na sapata corrida",5.35,-1.6,-1.31,0.25,3.2,0.3],["sap","fund","S4 – P18","Sapata 105×105×25 cm · malha ø10 c/15 · σ 0,25 MPa",-10.0,-1.325,-0.15,1.05,0.25,1.05],["pil","pil","P18","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 226 kN",-10.0,2.43,-0.15,0.14,7.26,0.3],["sap","fund","S5 – P19","Sapata 120×120×30 cm · malha ø10 c/15 · σ 0,25 MPa",-5.0,-4.25,-0.15,1.2,0.3,1.2],["pil","pil","P19","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 270 kN",-5.0,0.98,-0.15,0.14,10.16,0.3],["sap","fund","S6 – P20","Sapata 130×130×35 cm · malha ø10 c/15 · σ 0,25 MPa",-1.9,-4.275,-0.15,1.3,0.35,1.3],["pil","pil","P20","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 367 kN",-1.9,0.98,-0.15,0.14,10.16,0.3],["sap","fund","S5 – P21","Sapata 120×120×30 cm · malha ø10 c/15 · σ 0,25 MPa",5.35,-4.25,-0.15,1.2,0.3,1.2],["pil","pil","P21","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 323 kN",5.35,0.98,-0.15,0.14,10.16,0.3],["sap","fund","S4 – P22","Sapata 105×105×25 cm · malha ø10 c/15 · σ 0,25 MPa",-10.0,-2.025,4.88,1.05,0.25,1.05],["pil","pil","P22","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 241 kN",-10.0,2.08,4.88,0.14,7.96,0.3],["sap","fund","S6 – P23","Sapata 130×130×35 cm · malha ø10 c/15 · σ 0,25 MPa",-1.9,-1.375,4.88,1.3,0.35,1.3],["pil","pil","P23","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 376 kN",-1.9,2.43,4.88,0.14,7.26,0.3],["sap","fund","S4 – P24","Sapata 105×105×25 cm · malha ø10 c/15 · σ 0,25 MPa",5.35,-1.325,4.88,1.05,0.25,1.05],["pil","pil","P24","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 218 kN",5.35,2.43,4.88,0.14,7.26,0.3],["sap","fund","S1 – P25","Sapata 60×60×25 cm · malha ø10 c/15 · σ 0,25 MPa",-10.0,-2.025,7.0,0.6,0.25,0.6],["pil","pil","P25","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 56 kN",-10.0,0.58,7.0,0.14,4.96,0.3],["sap","fund","S1 – P26","Sapata 60×60×25 cm · malha ø10 c/15 · σ 0,25 MPa",-1.9,-1.325,7.0,0.6,0.25,0.6],["pil","pil","P26","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 67 kN",-1.9,0.93,7.0,0.14,4.26,0.3],["sap","fund","S1 – P27","Sapata 60×60×25 cm · malha ø10 c/15 · σ 0,25 MPa",5.35,-1.325,7.0,0.6,0.25,0.6],["pil","pil","P27","Pilar 14×30 C30 · 4 ø10 + est. ø5,0 c/12 · N = 37 kN",5.35,0.93,7.0,0.14,4.26,0.3],["vig","ter","V1","Viga 14×30 C30 · vão 8,1 m · 2 ø10 inf. · est. ø5,0 c/15 · baldrame frente",-5.95,-0.15,7.0,8.1,0.3,0.14],["vig","ter","V1","Viga 14×30 C30 · vão 7,25 m · 2 ø10 inf. · est. ø5,0 c/15 · baldrame frente",1.725,-0.15,7.0,7.25,0.3,0.14],["vig","ter","V2","Viga 14×30 C30 · vão 8,1 m · 2 ø10 inf. · est. ø5,0 c/15 · baldrame",-5.95,-0.15,4.88,8.1,0.3,0.14],["vig","ter","V2","Viga 14×30 C30 · vão 7,25 m · 2 ø10 inf. · est. ø5,0 c/15 · baldrame",1.725,-0.15,4.88,7.25,0.3,0.14],["vig","ter","V3","Viga 14×40 C30 · vão 5,0 m · 2 ø12,5 inf. · est. ø5,0 c/15 · baldrame (paredes guarderia/lavabo)",-7.5,-0.2,-0.15,5.0,0.4,0.14],["vig","ter","V3","Viga 14×30 C30 · vão 3,1 m · 2 ø10 inf. · est. ø5,0 c/15 · baldrame (paredes guarderia/lavabo)",-3.45,-0.15,-0.15,3.1,0.3,0.14],["vig","ter","V4","Viga 14×30 C30 · vão 7,25 m · 2 ø10 inf. · est. ø5,0 c/15 · baldrame sala/cozinha",1.725,-0.15,-0.15,7.25,0.3,0.14],["vig","ter","V5","Viga 14×30 C30 · vão 3,0 m · 2 ø10 inf. · est. ø5,0 c/15 · apoio da laje L1/L2",-6.5,-0.15,-3.92,3.0,0.3,0.14],["vig","ter","V6","Viga 14×30 C30 · vão 4,55 m · 2 ø8 inf. · est. ø5,0 c/15 · apoio da laje L5",7.625,-0.15,-3.92,4.55,0.3,0.14],["vig","ter","V7","Viga 25×40 C30 · vão 3,0 m · 2 ø10 inf. · est. ø5,0 c/20 · coroamento da cortina (cozinha de serviço)",-6.5,-0.2,-3.11,3.0,0.4,0.25],["vig","ter","V8","Viga 25×40 C30 · vão 1,8 m · 2 ø10 inf. · est. ø5,0 c/20 · coroamento da cortina",-5.0,-0.2,-2.21,0.25,0.4,1.8],["vig","ter","V9","Viga 25×40 C30 · vão 10,35 m · 2 ø10 inf. · est. ø5,0 c/20 · coroamento da cortina (frente do subsolo)",0.175,-0.2,-1.31,10.35,0.4,0.25],["vig","ter","V10","Viga 25×40 C30 · vão 1,8 m · 2 ø10 inf. · est. ø5,0 c/20 · coroamento da cortina",5.35,-0.2,-2.21,0.25,0.4,1.8],["vig","ter","V11","Viga 25×40 C30 · vão 4,55 m · 2 ø10 inf. · est. ø5,0 c/20 · coroamento da cortina (área técnica)",7.625,-0.2,-3.11,4.55,0.4,0.25],["vig","ter","V12","Viga 14×30 C30 · vão 3,0 m · 2 ø12,5 inf. · est. ø5,0 c/12 · parede dos fundos",-6.5,-0.15,-5.9,3.0,0.3,0.14],["vig","ter","V12","Viga 14×30 C30 · vão 3,1 m · 2 ø10 inf. · est. ø5,0 c/15 · parede dos fundos",-3.45,-0.15,-5.9,3.1,0.3,0.14],["vig","ter","V12","Viga 14×30 C30 · vão 3,6 m · 2 ø20 inf. · est. ø5,0 c/10 · parede dos fundos",-0.1,-0.15,-5.9,3.6,0.3,0.14],["vig","ter","V12","Viga 14×30 C30 · vão 3,65 m · 2 ø20 inf. · est. ø5,0 c/10 · parede dos fundos",3.525,-0.15,-5.9,3.65,0.3,0.14],["vig","ter","V12","Viga 14×40 C30 · vão 4,55 m · 2 ø16 inf. · est. ø5,0 c/12 · parede dos fundos",7.625,-0.2,-5.9,4.55,0.4,0.14],["vig","ter","V13","Viga 14×30 C30 · vão 2,12 m · 2 ø8 inf. · est. ø5,0 c/15 · parede da garagem",-10.0,-0.15,5.94,0.14,0.3,2.12],["vig","ter","V13","Viga 14×45 C30 · vão 5,03 m · 2 ø16 inf. · est. ø5,0 c/15 · parede da garagem",-10.0,-0.225,2.365,0.14,0.45,5.03],["vig","ter","V14","Viga 14×30 C30 · vão 2,12 m · 2 ø8 inf. · est. ø5,0 c/15 · parede do jardim",-1.9,-0.15,5.94,0.14,0.3,2.12],["vig","ter","V14","Viga 14×45 C30 · vão 5,03 m · 2 ø12,5 inf. · est. ø5,0 c/15 · parede do jardim",-1.9,-0.225,2.365,0.14,0.45,5.03],["vig","ter","V15","Viga 14×30 C30 · vão 2,12 m · 2 ø8 inf. · est. ø5,0 c/15 · fachada leste",5.35,-0.15,5.94,0.14,0.3,2.12],["vig","ter","V15","Viga 14×45 C30 · vão 5,03 m · 2 ø12,5 inf. · est. ø5,0 c/15 · fachada leste",5.35,-0.225,2.365,0.14,0.45,5.03],["vig","ter","V15","Viga 14×30 C30 · vão 1,16 m · 2 ø8 inf. · est. ø5,0 c/15 · fachada leste",5.35,-0.15,-0.73,0.14,0.3,1.16],["vig","ter","V16","Viga 14×30 C30 · vão 0,81 m · 2 ø8 inf. · est. ø5,0 c/15 · fachada leste",5.35,-0.15,-3.515,0.14,0.3,0.81],["vig","ter","V16","Viga 14×30 C30 · vão 1,98 m · 2 ø8 inf. · est. ø5,0 c/15 · fachada leste",5.35,-0.15,-4.91,0.14,0.3,1.98],["vig","ter","V17","Viga 14×30 C30 · vão 1,16 m · 2 ø8 inf. · est. ø5,0 c/15 · parede guarderia",-5.0,-0.15,-0.73,0.14,0.3,1.16],["vig","ter","V18","Viga 14×30 C30 · vão 0,81 m · 2 ø8 inf. · est. ø5,0 c/15 · parede área de serviço",-5.0,-0.15,-3.515,0.14,0.3,0.81],["vig","ter","V18","Viga 14×30 C30 · vão 1,98 m · 2 ø10 inf. · est. ø5,0 c/15 · parede área de serviço",-5.0,-0.15,-4.91,0.14,0.3,1.98],["vig","ter","V19","Viga 14×30 C30 · vão 0,81 m · 2 ø8 inf. · est. ø5,0 c/15 · ",-8.0,-0.15,-3.515,0.14,0.3,0.81],["vig","ter","V19","Viga 14×30 C30 · vão 1,98 m · 2 ø8 inf. · est. ø5,0 c/15 · ",-8.0,-0.15,-4.91,0.14,0.3,1.98],["vig","ter","V20","Viga 14×30 C30 · vão 0,81 m · 2 ø8 inf. · est. ø5,0 c/15 · ",9.9,-0.15,-3.515,0.14,0.3,0.81],["vig","ter","V20","Viga 14×30 C30 · vão 1,98 m · 2 ø8 inf. · est. ø5,0 c/15 · ",9.9,-0.15,-4.91,0.14,0.3,1.98],["vig","sup","V101","Viga 20×65 C30 · vão 8,1 m · 4 ø12,5 inf. · est. ø5,0 c/15 · borda – frente da garagem (vão livre)",-5.95,2.735,7.0,8.1,0.65,0.2],["vig","sup","V102","Viga 14×60 C30 · vão 7,25 m · 2 ø12,5 inf. · est. ø5,0 c/15 · borda – varanda descoberta (guarda-corpo)",1.725,2.76,7.0,7.25,0.6,0.14],["vig","sup","V103","Viga 25×65 C30 · vão 8,1 m · 4 ø25 inf. · est. ø5,0 c/12 · transição – fachada do superior sobre a garagem",-5.95,2.735,4.88,8.1,0.65,0.25],["vig","sup","V104","Viga 25×60 C30 · vão 7,25 m · 3 ø25 inf. · est. ø5,0 c/10 · transição – fachada do superior sobre as salas (forro/cortineiro)",1.725,2.76,4.88,7.25,0.6,0.25],["vig","sup","V105","Viga 14×40 C30 · vão 5,0 m · 2 ø20 inf. · est. ø5,0 c/10 · ",-7.5,2.86,-0.15,5.0,0.4,0.14],["vig","sup","V105","Viga 14×30 C30 · vão 3,1 m · 2 ø10 inf. · est. ø5,0 c/15 · ",-3.45,2.91,-0.15,3.1,0.3,0.14],["vig","sup","V106","Viga 25×60 C30 · vão 7,25 m · 4 ø25 inf. · est. ø5,0 c/10 · transição – parede do quarto master (portal sala/cozinha)",1.725,2.76,-0.15,7.25,0.6,0.25],["vig","sup","V107","Viga 14×40 C30 · vão 5,0 m · 2 ø16 inf. · est. ø5,0 c/12 · fachada dos fundos (sacada)",-7.5,2.86,-5.9,5.0,0.4,0.14],["vig","sup","V107","Viga 14×30 C30 · vão 3,1 m · 2 ø10 inf. · est. ø5,0 c/15 · fachada dos fundos (sacada)",-3.45,2.91,-5.9,3.1,0.3,0.14],["vig","sup","V107","Viga 14×35 C30 · vão 3,6 m · 2 ø20 inf. · est. ø5,0 c/10 · fachada dos fundos (sacada)",-0.1,2.885,-5.9,3.6,0.35,0.14],["vig","sup","V107","Viga 14×35 C30 · vão 3,65 m · 2 ø20 inf. · est. ø5,0 c/10 · fachada dos fundos (sacada)",3.525,2.885,-5.9,3.65,0.35,0.14],["vig","sup","V108","Viga 14×40 C30 · vão 4,55 m · 2 ø8 inf. · est. ø5,0 c/15 · gourmet",7.625,2.86,-3.92,4.55,0.4,0.14],["vig","sup","V109","Viga 14×40 C30 · vão 4,55 m · 2 ø12,5 inf. · est. ø5,0 c/15 · gourmet",7.625,2.86,-5.9,4.55,0.4,0.14],["vig","sup","V110","Viga 14×30 C30 · vão 1,98 m · 2 ø8 inf. · est. ø5,0 c/15 · gourmet",9.9,2.91,-4.91,0.14,0.3,1.98],["vig","sup","V111","Viga 14×30 C30 · vão 2,12 m · 2 ø8 inf. · est. ø5,0 c/15 · fachada oeste",-10.0,2.91,5.94,0.14,0.3,2.12],["vig","sup","V111","Viga 14×45 C30 · vão 5,03 m · 2 ø20 inf. · est. ø5,0 c/10 · fachada oeste",-10.0,2.835,2.365,0.14,0.45,5.03],["vig","sup","V111","Viga 14×50 C30 · vão 5,75 m · 2 ø12,5 inf. · est. ø5,0 c/15 · fachada oeste",-10.0,2.81,-3.025,0.14,0.5,5.75],["vig","sup","V112","Viga 14×45 C30 · vão 5,03 m · 2 ø25 inf. · est. ø5,0 c/10 · parede suítes/sala íntima (D2 apoiada na V do eixo 2)",-5.0,2.835,2.365,0.14,0.45,5.03],["vig","sup","V112","Viga 14×35 C30 · vão 3,77 m · 2 ø16 inf. · est. ø5,0 c/12 · parede suítes/sala íntima (D2 apoiada na V do eixo 2)",-5.0,2.885,-2.035,0.14,0.35,3.77],["vig","sup","V112","Viga 14×30 C30 · vão 1,98 m · 2 ø8 inf. · est. ø5,0 c/15 · parede suítes/sala íntima (D2 apoiada na V do eixo 2)",-5.0,2.91,-4.91,0.14,0.3,1.98],["vig","sup","V113","Viga 14×30 C30 · vão 2,12 m · 2 ø8 inf. · est. ø5,0 c/15 · ",-1.9,2.91,5.94,0.14,0.3,2.12],["vig","sup","V113","Viga 14×45 C30 · vão 5,03 m · 2 ø16 inf. · est. ø5,0 c/15 · ",-1.9,2.835,2.365,0.14,0.45,5.03],["vig","sup","V114","Viga 14×30 C30 · vão 2,12 m · 2 ø8 inf. · est. ø5,0 c/15 · fachada leste",5.35,2.91,5.94,0.14,0.3,2.12],["vig","sup","V114","Viga 14×45 C30 · vão 5,03 m · 2 ø12,5 inf. · est. ø5,0 c/15 · fachada leste",5.35,2.835,2.365,0.14,0.45,5.03],["vig","sup","V114","Viga 14×35 C30 · vão 3,77 m · 2 ø10 inf. · est. ø5,0 c/15 · fachada leste",5.35,2.885,-2.035,0.14,0.35,3.77],["vig","sup","V114","Viga 14×30 C30 · vão 1,98 m · 2 ø8 inf. · est. ø5,0 c/15 · fachada leste",5.35,2.91,-4.91,0.14,0.3,1.98],["vig","cob","V201","Viga 20×65 C30 · vão 8,1 m · 3 ø20 inf. · est. ø5,0 c/15 · borda",-5.95,5.735,4.88,8.1,0.65,0.2],["vig","cob","V201","Viga 14×60 C30 · vão 7,25 m · 2 ø20 inf. · est. ø5,0 c/12 · borda",1.725,5.76,4.88,7.25,0.6,0.14],["vig","cob","V202","Viga 14×40 C30 · vão 5,0 m · 2 ø8 inf. · est. ø5,0 c/15 · apoio da caixa d'água 1.000 L e do boiler 300 L",-7.5,5.86,-0.15,5.0,0.4,0.14],["vig","cob","V202","Viga 14×30 C30 · vão 3,1 m · 2 ø8 inf. · est. ø5,0 c/15 · apoio da caixa d'água 1.000 L e do boiler 300 L",-3.45,5.91,-0.15,3.1,0.3,0.14],["vig","cob","V202","Viga 25×60 C30 · vão 7,25 m · 4 ø25 inf. · est. ø5,0 c/10 · apoio da caixa d'água 1.000 L e do boiler 300 L",1.725,5.76,-0.15,7.25,0.6,0.25],["vig","cob","V203","Viga 14×40 C30 · vão 5,0 m · 2 ø8 inf. · est. ø5,0 c/15 · borda",-7.5,5.86,-5.9,5.0,0.4,0.14],["vig","cob","V203","Viga 14×30 C30 · vão 3,1 m · 2 ø8 inf. · est. ø5,0 c/15 · borda",-3.45,5.91,-5.9,3.1,0.3,0.14],["vig","cob","V203","Viga 14×30 C30 · vão 3,6 m · 2 ø16 inf. · est. ø5,0 c/10 · borda",-0.1,5.91,-5.9,3.6,0.3,0.14],["vig","cob","V203","Viga 14×30 C30 · vão 3,65 m · 2 ø16 inf. · est. ø5,0 c/10 · borda",3.525,5.91,-5.9,3.65,0.3,0.14],["vig","cob","V204","Viga 14×45 C30 · vão 5,03 m · 2 ø16 inf. · est. ø5,0 c/12 · borda",-10.0,5.835,2.365,0.14,0.45,5.03],["vig","cob","V204","Viga 14×50 C30 · vão 5,75 m · 2 ø20 inf. · est. ø5,0 c/12 · borda",-10.0,5.81,-3.025,0.14,0.5,5.75],["vig","cob","V205","Viga 14×45 C30 · vão 5,03 m · 2 ø20 inf. · est. ø5,0 c/10 · ",-5.0,5.835,2.365,0.14,0.45,5.03],["vig","cob","V205","Viga 14×35 C30 · vão 3,77 m · 2 ø20 inf. · est. ø5,0 c/10 · ",-5.0,5.885,-2.035,0.14,0.35,3.77],["vig","cob","V205","Viga 14×30 C30 · vão 1,98 m · 2 ø10 inf. · est. ø5,0 c/12 · ",-5.0,5.91,-4.91,0.14,0.3,1.98],["vig","cob","V206","Viga 14×45 C30 · vão 5,03 m · 2 ø12,5 inf. · est. ø5,0 c/15 · ",-1.9,5.835,2.365,0.14,0.45,5.03],["vig","cob","V206","Viga 14×50 C30 · vão 5,75 m · 2 ø16 inf. · est. ø5,0 c/15 · ",-1.9,5.81,-3.025,0.14,0.5,5.75],["vig","cob","V207","Viga 14×45 C30 · vão 5,03 m · 2 ø8 inf. · est. ø5,0 c/15 · borda",5.35,5.835,2.365,0.14,0.45,5.03],["vig","cob","V207","Viga 14×35 C30 · vão 3,77 m · 2 ø8 inf. · est. ø5,0 c/15 · borda",5.35,5.885,-2.035,0.14,0.35,3.77],["vig","cob","V207","Viga 14×30 C30 · vão 1,98 m · 2 ø8 inf. · est. ø5,0 c/15 · borda",5.35,5.91,-4.91,0.14,0.3,1.98],["laj","ter","L1","Laje treliçada H8+4 · 8 trilhos TR8 · vão 1,98 m · EPS 17 pç",-6.5,-0.06,-4.91,3.0,0.12,1.98],["laj","ter","L2","Laje treliçada H8+4 · 8 trilhos TR8 · vão 0,81 m · EPS 7 pç",-6.5,-0.06,-3.515,3.0,0.12,0.81],["laj","ter","L3","Laje treliçada H8+4 · 11 trilhos TR8 · vão 3,1 m · EPS 36 pç",-3.45,-0.06,-3.605,3.1,0.12,4.59],["laj","ter","L4","Laje treliçada H12+4 · 18 trilhos TR12 · vão 4,59 m · EPS 87 pç",1.725,-0.08,-3.605,7.25,0.16,4.59],["laj","ter","L5","Laje treliçada H8+4 · 11 trilhos TR8 · vão 2,79 m · EPS 33 pç",7.625,-0.06,-4.505,4.55,0.12,2.79],["laj","sup","L6","Laje treliçada H8+4 · 11 trilhos TR8 · vão 2,12 m · EPS 25 pç",-7.875,3.0,5.94,4.25,0.12,2.12],["laj","sup","L7","Laje treliçada H8+4 · 10 trilhos TR8 · vão 2,12 m · EPS 23 pç",-3.825,3.0,5.94,3.85,0.12,2.12],["laj","sup","L8","Laje treliçada H8+4 · 18 trilhos TR8 · vão 3,22 m · EPS 61 pç",1.725,3.0,6.49,7.25,0.12,3.22],["laj","sup","L9","Laje treliçada H12+4 · 12 trilhos TR12 · vão 5,0 m · EPS 63 pç",-7.5,2.98,2.365,5.0,0.16,5.03],["laj","sup","L10","Laje treliçada H8+4 · 12 trilhos TR8 · vão 3,1 m · EPS 40 pç",-3.45,3.0,2.365,3.1,0.12,5.03],["laj","sup","L11","Laje treliçada H12+4 · 18 trilhos TR12 · vão 5,03 m · EPS 96 pç",1.725,2.98,2.365,7.25,0.16,5.03],["laj","sup","L12","Laje treliçada H8+4 · 12 trilhos TR8 · vão 3,77 m · EPS 48 pç",-7.5,3.0,-2.035,5.0,0.12,3.77],["laj","sup","L13","Laje treliçada H8+4 · 12 trilhos TR8 · vão 1,98 m · EPS 25 pç",-7.5,3.0,-4.91,5.0,0.12,1.98],["laj","sup","L14","Laje treliçada H8+4 · 14 trilhos TR8 · vão 3,1 m · EPS 46 pç",-3.45,3.0,-3.025,3.1,0.12,5.75],["laj","sup","L15","Laje treliçada H16+4 · 18 trilhos TR16 · vão 5,75 m · EPS 109 pç",1.725,2.96,-3.025,7.25,0.2,5.75],["laj","sup","L16","Laje treliçada H8+4 · 11 trilhos TR8 · vão 2,9 m · EPS 34 pç",7.625,3.0,-4.45,4.55,0.12,2.9],["laj","cob","L17","Laje treliçada H12+4 · 12 trilhos TR12 · vão 5,0 m · EPS 63 pç",-7.5,5.98,2.365,5.0,0.16,5.03],["laj","cob","L18","Laje treliçada H8+4 · 12 trilhos TR8 · vão 3,1 m · EPS 40 pç",-3.45,6.0,2.365,3.1,0.12,5.03],["laj","cob","L19","Laje treliçada H12+4 · 18 trilhos TR12 · vão 5,03 m · EPS 96 pç",1.725,5.98,2.365,7.25,0.16,5.03],["laj","cob","L20","Laje treliçada H12+4 · 14 trilhos TR12 · vão 5,0 m · EPS 74 pç",-7.5,5.98,-3.025,5.0,0.16,5.75],["laj","cob","L21","Laje treliçada H8+4 · 14 trilhos TR8 · vão 3,1 m · EPS 46 pç",-3.45,6.0,-3.025,3.1,0.12,5.75],["laj","cob","L22","Laje treliçada H16+4 · 18 trilhos TR16 · vão 5,75 m · EPS 109 pç",1.725,5.96,-3.025,7.25,0.2,5.75],["cor","fund","Cortina","Cortina de contenção e = 25 cm C30 · ø10 c/10 + ø8 c/20 · terra 2,90 m · sapata corrida 120×30 · coroamento 25×40",-8.0,-1.65,-3.515,0.25,2.5,0.81],["cor","fund","Sapata corrida","Sapata corrida da cortina 120×30 C30 · ø10 c/15 + 6 ø8",-8.0,-3.05,-3.515,1.2,0.3,0.81],["cor","fund","Cortina","Cortina de contenção e = 25 cm C30 · ø10 c/10 + ø8 c/20 · terra 2,90 m · sapata corrida 120×30 · coroamento 25×40",-6.5,-1.65,-3.11,3.0,2.5,0.25],["cor","fund","Sapata corrida","Sapata corrida da cortina 120×30 C30 · ø10 c/15 + 6 ø8",-6.5,-3.05,-3.11,3.0,0.3,1.2],["cor","fund","Cortina","Cortina de contenção e = 25 cm C30 · ø10 c/10 + ø8 c/20 · terra 2,90 m · sapata corrida 120×30 · coroamento 25×40",-5.0,-1.65,-2.21,0.25,2.5,1.8],["cor","fund","Sapata corrida","Sapata corrida da cortina 120×30 C30 · ø10 c/15 + 6 ø8",-5.0,-3.05,-2.21,1.2,0.3,1.8],["cor","fund","Cortina","Cortina de contenção e = 25 cm C30 · ø10 c/10 + ø8 c/20 · terra 2,90 m · sapata corrida 120×30 · coroamento 25×40",0.175,-1.65,-1.31,10.35,2.5,0.25],["cor","fund","Sapata corrida","Sapata corrida da cortina 120×30 C30 · ø10 c/15 + 6 ø8",0.175,-3.05,-1.31,10.35,0.3,1.2],["cor","fund","Cortina","Cortina de contenção e = 25 cm C30 · ø10 c/10 + ø8 c/20 · terra 2,90 m · sapata corrida 120×30 · coroamento 25×40",5.35,-1.65,-2.21,0.25,2.5,1.8],["cor","fund","Sapata corrida","Sapata corrida da cortina 120×30 C30 · ø10 c/15 + 6 ø8",5.35,-3.05,-2.21,1.2,0.3,1.8],["cor","fund","Cortina","Cortina de contenção e = 25 cm C30 · ø10 c/10 + ø8 c/20 · terra 2,90 m · sapata corrida 120×30 · coroamento 25×40",7.625,-1.65,-3.11,4.55,2.5,0.25],["cor","fund","Sapata corrida","Sapata corrida da cortina 120×30 C30 · ø10 c/15 + 6 ø8",7.625,-3.05,-3.11,4.55,0.3,1.2],["cx","cob","Caixa d'água 1.000 l","caixa d'água 1.000 L sobre a viga V202 · 12.0 kN",2.0,6.61,-0.15,1.4,1.1,1.4],["cx","cob","Boiler 300 l","boiler 300 L sobre a viga V202 · 4.5 kN",4.4,6.81,-0.15,0.66,1.5,0.66],["mad","mad","Poste M1","Poste duplo 2×(6×16) eucalipto tratado · mãos-francesas em Y",-8.04,1.95,-7.25,0.18,8.7,0.16],["mad","mad","Pilarete M1","Pilarete 25×25 C30 · 4 ø10 · topo +0,50 do passeio",-8.04,-2.65,-7.25,0.25,0.5,0.25],["mad","mad","Poste M2","Poste duplo 2×(6×16) eucalipto tratado · mãos-francesas em Y",-4.64,1.95,-7.25,0.18,8.7,0.16],["mad","mad","Pilarete M2","Pilarete 25×25 C30 · 4 ø10 · topo +0,50 do passeio",-4.64,-2.65,-7.25,0.25,0.5,0.25],["mad","mad","Poste M3","Poste duplo 2×(6×16) eucalipto tratado · mãos-francesas em Y",-1.24,1.95,-7.25,0.18,8.7,0.16],["mad","mad","Pilarete M3","Pilarete 25×25 C30 · 4 ø10 · topo +0,50 do passeio",-1.24,-2.65,-7.25,0.25,0.5,0.25],["mad","mad","Poste M4","Poste duplo 2×(6×16) eucalipto tratado · mãos-francesas em Y",2.16,1.95,-7.25,0.18,8.7,0.16],["mad","mad","Pilarete M4","Pilarete 25×25 C30 · 4 ø10 · topo +0,50 do passeio",2.16,-2.65,-7.25,0.25,0.5,0.25],["mad","mad","Poste M5","Poste duplo 2×(6×16) eucalipto tratado · mãos-francesas em Y",5.41,1.95,-7.25,0.18,8.7,0.16],["mad","mad","Pilarete M5","Pilarete 25×25 C30 · 4 ø10 · topo +0,50 do passeio",5.41,-2.65,-7.25,0.25,0.5,0.25],["mad","mad","Poste M6","Poste duplo 2×(6×16) eucalipto tratado · mãos-francesas em Y",9.91,1.95,-7.25,0.18,8.7,0.16],["mad","mad","Pilarete M6","Pilarete 25×25 C30 · 4 ø10 · topo +0,50 do passeio",9.91,-2.65,-7.25,0.25,0.5,0.25],["mad","mad","Viga do deck","Viga dupla 2×(6×16) eucalipto tratado",0.935,-0.08,-7.25,18.35,0.16,0.3],["mad","mad","Viga da sacada","Viga dupla 2×(6×16) eucalipto tratado",0.935,2.98,-7.25,18.35,0.16,0.3],["mad","mad","Viga da pestana","Viga dupla 2×(6×16) eucalipto tratado",0.935,6.22,-7.25,18.35,0.16,0.3]],"meta":{"Vc":91.62,"aco":4857.9,"eps":1178,"mad":4.63,"npil":27,"nvig":41,"nlaj":22}};
+const css = getComputedStyle(document.documentElement);
+const tok = n => css.getPropertyValue(n).trim();
+const CATS = [
+ ['sap','Sapatas','--c-sap'],['cor','Cortina do subsolo','--c-cor'],['pil','Pilares','--c-pil'],['vig0','Baldrames (0,00)','--c-vig0'],
+ ['vig','Vigas (+3,06 e +6,06)','--c-vig'],['laj','Lajes treliçadas','--c-laj'],['cx','Caixa d\'água e boiler','--c-cx'],['mad','Varanda em madeira','--c-mad']];
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35,1,0.1,500);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.target.set(0,1.5,0);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8f94,0.85));
+const sun = new THREE.DirectionalLight(0xffffff,0.75); sun.position.set(12,20,16); scene.add(sun);
+const grid = new THREE.GridHelper(40,40,0x9aa4ad,0xc9cfd5); grid.position.y=-2.9; grid.material.opacity=.35; grid.material.transparent=true; scene.add(grid);
+const meshes = [];
+const mats = {};
+function mat(cat){
+  if(!mats[cat]){
+    const key = cat==='vig0'?'--c-vig0':CATS.find(c=>c[0]===cat)[2];
+    const m = new THREE.MeshLambertMaterial({color:new THREE.Color(tok(key))});
+    if(cat==='laj'){m.transparent=true;m.opacity=.45;m.depthWrite=false}
+    mats[cat]=m;
+  }
+  return mats[cat];
+}
+const edgeMat = new THREE.LineBasicMaterial({color:0x1d2329,transparent:true,opacity:.35});
+DATA.boxes.forEach(b=>{
+  let [cat,lv,nome,info,cx,cy,cz,sx,sy,sz] = b;
+  if(cat==='vig' && lv==='ter') cat='vig0';
+  const g = new THREE.BoxGeometry(Math.max(sx,.02),Math.max(sy,.02),Math.max(sz,.02));
+  const m = new THREE.Mesh(g, mat(cat)); m.position.set(cx,cy,cz);
+  m.userData = {cat,lv,nome,info};
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g), edgeMat); m.add(e);
+  scene.add(m); meshes.push(m);
+});
+// camadas
+const vis = {}; CATS.forEach(c=>vis[c[0]]=true);
+let level = 'all';
+const LV = [['all','Tudo'],['fund','Fundação'],['ter','0,00'],['sup','+3,06'],['cob','+6,06']];
+function apply(){
+  meshes.forEach(m=>{
+    const u=m.userData; let on = vis[u.cat];
+    if(level!=='all'){
+      if(level==='fund') on = on && (u.lv==='fund');
+      else if(u.cat==='pil' || u.cat==='mad') on = on;
+      else on = on && u.lv===level;
+    }
+    m.visible = on;
+  });
+}
+const L = document.getElementById('layers');
+CATS.forEach(([k,lab,t])=>{
+  const id='ly-'+k; const row=document.createElement('label'); row.className='layer'; row.htmlFor=id;
+  row.innerHTML=`<input type="checkbox" id="${id}" checked><span class="sw" style="background:var(${t})"></span>${lab}`;
+  row.querySelector('input').addEventListener('change',e=>{vis[k]=e.target.checked;apply()});
+  L.appendChild(row);
+});
+const LVd = document.getElementById('levels');
+LV.forEach(([k,lab])=>{const b=document.createElement('button');b.textContent=lab;b.id='lv-'+k;b.setAttribute('aria-pressed',k==='all');
+  b.onclick=()=>{level=k;[...LVd.children].forEach(x=>x.setAttribute('aria-pressed',x===b));apply()};LVd.appendChild(b)});
+const M = DATA.meta, fmt=(n,d=1)=>n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+document.getElementById('stats').innerHTML=`<span>Pilares</span><span>${M.npil}</span><span>Vigas</span><span>${M.nvig}</span><span>Lajes</span><span>${M.nlaj}</span><span>Concreto C30</span><span>${fmt(M.Vc)} m³</span><span>Aço</span><span>${fmt(M.aco,0)} kg</span><span>EPS</span><span>${M.eps} pç</span><span>Madeira</span><span>${fmt(M.mad,2)} m³</span>`;
+// vistas
+const VIEWS = {iso:[16,12,18], front:[0,4,24], back:[0,4,-24], top:[0.01,30,0.01]};
+function view(k){const p=VIEWS[k]; camera.position.set(...p); controls.target.set(0,1.5,0); controls.update();
+  ['iso','front','back','top'].forEach(x=>document.getElementById('v-'+x).setAttribute('aria-pressed',x===k))}
+['iso','front','back','top'].forEach(k=>document.getElementById('v-'+k).onclick=()=>view(k));
+view('iso');
+// seleção
+const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let sel=null, selMat=null, down=null;
+const hi = new THREE.MeshLambertMaterial({color:0xffd400});
+const info=document.getElementById('info');
+renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY]});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!down || Math.hypot(e.clientX-down[0],e.clientY-down[1])>6) return;
+  const r=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX-r.left)/r.width)*2-1; mouse.y=-((e.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera(mouse,camera);
+  const hit=ray.intersectObjects(meshes.filter(m=>m.visible),false).sort((a,b)=>(a.object.userData.cat==='laj')-(b.object.userData.cat==='laj')||a.distance-b.distance)[0];
+  if(sel){sel.material=selMat;sel=null}
+  if(hit){sel=hit.object;selMat=sel.material;sel.material=hi;
+    info.innerHTML=`<b>${sel.userData.nome}</b><p>${sel.userData.info}</p>`;}
+});
+document.getElementById('tg').onclick=e=>{const p=document.getElementById('panel');p.classList.toggle('closed');
+  const c=p.classList.contains('closed');e.target.textContent=c?'Camadas':'Ocultar';e.target.setAttribute('aria-expanded',!c)};
+function size(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();
+  const bg=tok('--bg'); renderer.setClearColor(new THREE.Color(bg));}
+window.addEventListener('resize',size); size();
+if(matchMedia('(max-width:640px)').matches){document.getElementById('tg').click()}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',size);
+(function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)})();
+</script>
+
+</body>
+</html>
